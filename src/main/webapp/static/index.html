@@ -1,0 +1,122 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8"/>
+    <meta name="viewport" content="width=device-width, initial-scale=1"/>
+    <title>味知源 · 在线点餐</title>
+    <script>
+        // 上下文路径自适应：Jetty(/) 与 Tomcat(/restaurant) 部署均可正常加载静态资源与接口
+        (function () {
+            var p = location.pathname;
+            var i = p.indexOf('/static/');
+            window.CTX = i >= 0 ? p.slice(0, i) : p.replace(/\/+$/, '');
+            document.write('<base href="' + window.CTX + '/static/"/>');
+        })();
+    </script>
+    <link rel="stylesheet" href="css/common.css"/>
+</head>
+<body>
+<div id="toast"></div>
+
+<nav class="navbar">
+    <div class="container inner">
+        <a class="logo" href="index.html"><span class="badge">🍜</span>味知源餐厅</a>
+        <div class="nav-links" id="nav-links">
+            <a href="index.html" data-key="home">开始点餐</a>
+            <a href="orders.html" data-key="orders">我的订单</a>
+            <a href="profile.html" data-key="profile">个人中心</a>
+            <a href="admin.html" data-key="admin" hidden>后台管理</a>
+        </div>
+        <div style="margin-left:auto" id="nav-user"></div>
+    </div>
+</nav>
+
+<header class="hero">
+    <div class="container inner">
+        <h1>今日想吃点儿什么？</h1>
+        <p>川湘私厨、时令小炒、主食汤羹一应俱全。在线选菜下单，后厨实时接单，支持餐到付款。</p>
+        <div class="chips">
+            <span class="chip active">🍳 现点现炒</span>
+            <span class="chip">🚚 30 分钟送达</span>
+            <span class="chip">✅ 明码标价</span>
+        </div>
+    </div>
+</header>
+
+<main class="container">
+    <div class="toolbar">
+        <div class="search-box">
+            <input id="kw" class="input" placeholder="搜索菜名、分类或口味，如：辣、鸡丁"/>
+            <button class="btn" id="btn-search">搜索</button>
+        </div>
+        <button class="btn btn-outline" id="btn-reset">重置筛选</button>
+        <span class="stat-pill" id="online"><i class="dot"></i>在线人数统计中…</span>
+    </div>
+
+    <div class="chips" id="categories"></div>
+
+    <div class="section-title">
+        <h3 id="list-title">全部菜品</h3>
+        <span class="muted" id="list-count"></span>
+    </div>
+
+    <div class="grid grid-dish" id="dish-list"></div>
+    <div class="empty" id="empty" hidden>😕 没有找到相关菜品，换个关键词试试</div>
+</main>
+
+<footer class="site container center">
+    味知源餐厅 · 地址：阳光路 88 号 · 订餐热线 400-888-8888<br/>
+    技术栈：JavaSE + Servlet + Filter + Listener + JDBC + MySQL + MinIO
+</footer>
+
+<!-- 购物车 -->
+<button class="cart-fab" id="btn-cart">🛒<span class="cart-count" id="cart-count">0</span></button>
+<div class="drawer-mask" id="mask"></div>
+<aside class="drawer" id="drawer">
+    <header class="between">
+        <h3 style="margin:0">🛒 我的购物车</h3>
+        <button class="btn-link" id="btn-close-drawer">收起 ✕</button>
+    </header>
+    <div class="cart-list" id="cart-list"></div>
+    <footer>
+        <div class="between" style="margin-bottom:12px">
+            <span class="muted">合计</span>
+            <b class="price" id="cart-total">¥0.00</b>
+        </div>
+        <button class="btn btn-block" id="btn-checkout">去结算</button>
+    </footer>
+</aside>
+
+<!-- 结算弹窗 -->
+<div class="modal" id="checkout">
+    <div class="modal-box">
+        <div class="between" style="margin-bottom:16px">
+            <h3 style="margin:0">确认订单</h3>
+            <button class="btn-link" id="btn-close-checkout">✕</button>
+        </div>
+        <form class="form" id="checkout-form">
+            <div class="field">
+                <label for="payType">支付方式</label>
+                <select class="select" id="payType" name="payType">
+                    <option value="CASH">餐到付款</option>
+                    <option value="WECHAT">微信支付</option>
+                    <option value="ALIPAY">支付宝</option>
+                </select>
+            </div>
+            <div class="field">
+                <label for="remark">备注</label>
+                <textarea class="textarea" id="remark" name="remark" rows="2" placeholder="如：不要辣、多加香菜"></textarea>
+            </div>
+            <div class="between">
+                <span>应付金额</span>
+                <b class="price" id="checkout-total">¥0.00</b>
+            </div>
+            <button class="btn btn-block mt-16" type="submit" id="btn-submit-order">提交订单</button>
+        </form>
+    </div>
+</div>
+
+<script src="js/api.js"></script>
+<script src="js/index.js"></script>
+</body>
+</html>

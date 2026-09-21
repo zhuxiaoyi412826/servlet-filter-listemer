@@ -1,0 +1,33 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8"/>
+    <meta name="viewport" content="width=device-width, initial-scale=1"/>
+    <title>页面不存在 · 味知源餐厅</title>
+    <script>
+        // 上下文路径自适应：Jetty(/) 与 Tomcat(/restaurant) 部署均可正常加载静态资源与接口
+        (function () {
+            var p = location.pathname;
+            var i = p.indexOf('/static/');
+            window.CTX = i >= 0 ? p.slice(0, i) : p.replace(/\/+$/, '');
+            document.write('<base href="' + window.CTX + '/static/"/>');
+        })();
+    </script>
+    <link rel="stylesheet" href="css/common.css"/>
+</head>
+<body>
+<div class="auth-wrap">
+    <div class="auth-card center">
+        <div style="font-size:64px">🍽️</div>
+        <h2 style="margin:12px 0 6px">页面走丢了</h2>
+        <p class="muted" id="msg" style="font-size:14px">你访问的资源不存在或已被移除</p>
+        <a class="btn btn-block mt-16" href="index.html">回到首页点餐</a>
+    </div>
+</div>
+<script>
+    const p = new URLSearchParams(location.search);
+    const err = p.get('msg');
+    if (err) document.getElementById('msg').textContent = decodeURIComponent(err);
+</script>
+</body>
+</html>

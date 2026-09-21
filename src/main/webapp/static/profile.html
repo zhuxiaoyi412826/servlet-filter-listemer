@@ -1,0 +1,83 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8"/>
+    <meta name="viewport" content="width=device-width, initial-scale=1"/>
+    <title>个人中心 · 味知源餐厅</title>
+    <script>
+        // 上下文路径自适应：Jetty(/) 与 Tomcat(/restaurant) 部署均可正常加载静态资源与接口
+        (function () {
+            var p = location.pathname;
+            var i = p.indexOf('/static/');
+            window.CTX = i >= 0 ? p.slice(0, i) : p.replace(/\/+$/, '');
+            document.write('<base href="' + window.CTX + '/static/"/>');
+        })();
+    </script>
+    <link rel="stylesheet" href="css/common.css"/>
+</head>
+<body>
+<div id="toast"></div>
+
+<nav class="navbar">
+    <div class="container inner">
+        <a class="logo" href="index.html"><span class="badge">🍜</span>味知源餐厅</a>
+        <div class="nav-links" id="nav-links">
+            <a href="index.html" data-key="home">开始点餐</a>
+            <a href="orders.html" data-key="orders">我的订单</a>
+            <a href="profile.html" data-key="profile">个人中心</a>
+            <a href="admin.html" data-key="admin" hidden>后台管理</a>
+        </div>
+        <div style="margin-left:auto" id="nav-user"></div>
+    </div>
+</nav>
+
+<main class="container">
+    <div class="grid" style="grid-template-columns:300px 1fr;gap:24px">
+        <aside class="card" style="padding:22px;text-align:center">
+            <div id="avatar-box" class="avatar-lg" style="margin:0 auto 12px">🙂</div>
+            <input type="file" id="file" accept="image/*" hidden/>
+            <button class="btn btn-outline btn-sm" id="btn-pick">更换头像</button>
+            <div class="muted" style="font-size:12px;margin-top:8px">支持 jpg/png/webp，≤2MB<br/>上传至 MinIO 对象存储</div>
+            <hr style="border:none;border-top:1px solid var(--border);margin:18px 0"/>
+            <div id="infra" class="muted" style="font-size:12.5px;text-align:left"></div>
+        </aside>
+
+        <section class="card" style="padding:22px">
+            <h3 style="margin-top:0">基本信息</h3>
+            <form class="form" id="form-profile" novalidate>
+                <div class="grid" style="grid-template-columns:1fr 1fr">
+                    <div class="field">
+                        <label for="username">用户名（不可修改）</label>
+                        <input class="input" id="username" name="username" disabled/>
+                    </div>
+                    <div class="field">
+                        <label for="nickname">昵称</label>
+                        <input class="input" id="nickname" name="nickname"/>
+                        <div class="error-text" data-error="nickname"></div>
+                    </div>
+                    <div class="field">
+                        <label for="phone">手机号（用于验证码登录）</label>
+                        <input class="input" id="phone" name="phone" maxlength="11"/>
+                        <div class="error-text" data-error="phone"></div>
+                    </div>
+                    <div class="field">
+                        <label for="role">角色</label>
+                        <input class="input" id="role" name="role" disabled/>
+                    </div>
+                </div>
+                <div class="field">
+                    <label for="address">常用送餐地址</label>
+                    <textarea class="textarea" id="address" name="address" rows="2"></textarea>
+                </div>
+                <button class="btn" type="submit" id="btn-save">保存资料</button>
+            </form>
+        </section>
+    </div>
+</main>
+
+<footer class="site container center">味知源餐厅 · 基于 Cookie + Session 的登录态方案</footer>
+
+<script src="js/api.js"></script>
+<script src="js/profile.js"></script>
+</body>
+</html>

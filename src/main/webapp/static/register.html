@@ -1,0 +1,71 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8"/>
+    <meta name="viewport" content="width=device-width, initial-scale=1"/>
+    <title>注册 · 味知源餐厅</title>
+    <script>
+        // 上下文路径自适应：Jetty(/) 与 Tomcat(/restaurant) 部署均可正常加载静态资源与接口
+        (function () {
+            var p = location.pathname;
+            var i = p.indexOf('/static/');
+            window.CTX = i >= 0 ? p.slice(0, i) : p.replace(/\/+$/, '');
+            document.write('<base href="' + window.CTX + '/static/"/>');
+        })();
+    </script>
+    <link rel="stylesheet" href="css/common.css"/>
+</head>
+<body>
+<div id="toast"></div>
+
+<div class="auth-wrap">
+    <div class="auth-card">
+        <div class="center" style="margin-bottom:20px">
+            <div style="font-size:38px">🎉</div>
+            <h2 style="margin:6px 0 0">注册新账号</h2>
+            <p class="muted" style="margin:0;font-size:13px">注册成功后自动登录，即可开始点餐</p>
+        </div>
+
+        <form class="form" id="form-register" novalidate>
+            <div class="field">
+                <label for="username">用户名 <span class="muted" style="font-weight:400">3-20 位字母/数字/下划线</span></label>
+                <input class="input" id="username" name="username" placeholder="例如：food_lover"/>
+                <div class="error-text" data-error="username"></div>
+            </div>
+            <div class="field">
+                <label for="password">密码</label>
+                <input class="input" id="password" name="password" type="password" placeholder="6-20 位密码"/>
+                <div class="error-text" data-error="password"></div>
+            </div>
+            <div class="field">
+                <label for="confirm">确认密码</label>
+                <input class="input" id="confirm" name="confirm" type="password" placeholder="请再次输入密码"/>
+                <div class="error-text" data-error="confirm"></div>
+            </div>
+            <div class="field">
+                <label for="phone">手机号 <span class="muted" style="font-weight:400">选填，用于手机号登录</span></label>
+                <input class="input" id="phone" name="phone" placeholder="11 位手机号" maxlength="11"/>
+                <div class="error-text" data-error="phone"></div>
+            </div>
+            <div class="field">
+                <label for="nickname">昵称</label>
+                <input class="input" id="nickname" name="nickname" placeholder="默认与用户名相同"/>
+                <div class="error-text" data-error="nickname"></div>
+            </div>
+            <div class="field">
+                <label for="address">常用送餐地址 <span class="muted" style="font-weight:400">选填</span></label>
+                <textarea class="textarea" id="address" name="address" rows="2" placeholder="例如：阳光小区 3 栋 502"></textarea>
+                <div class="error-text" data-error="address"></div>
+            </div>
+            <button class="btn btn-block" type="submit" id="btn-register">立即注册</button>
+            <div class="center" style="font-size:13px">
+                已有账号？<a href="login.html" style="color:var(--primary)">返回登录</a>
+            </div>
+        </form>
+    </div>
+</div>
+
+<script src="js/api.js"></script>
+<script src="js/auth.js"></script>
+</body>
+</html>

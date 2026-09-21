@@ -1,0 +1,47 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8"/>
+    <meta name="viewport" content="width=device-width, initial-scale=1"/>
+    <title>我的订单 · 味知源餐厅</title>
+    <script>
+        // 上下文路径自适应：Jetty(/) 与 Tomcat(/restaurant) 部署均可正常加载静态资源与接口
+        (function () {
+            var p = location.pathname;
+            var i = p.indexOf('/static/');
+            window.CTX = i >= 0 ? p.slice(0, i) : p.replace(/\/+$/, '');
+            document.write('<base href="' + window.CTX + '/static/"/>');
+        })();
+    </script>
+    <link rel="stylesheet" href="css/common.css"/>
+</head>
+<body>
+<div id="toast"></div>
+
+<nav class="navbar">
+    <div class="container inner">
+        <a class="logo" href="index.html"><span class="badge">🍜</span>味知源餐厅</a>
+        <div class="nav-links" id="nav-links">
+            <a href="index.html" data-key="home">开始点餐</a>
+            <a href="orders.html" data-key="orders">我的订单</a>
+            <a href="profile.html" data-key="profile">个人中心</a>
+            <a href="admin.html" data-key="admin" hidden>后台管理</a>
+        </div>
+        <div style="margin-left:auto" id="nav-user"></div>
+    </div>
+</nav>
+
+<main class="container">
+    <div class="section-title">
+        <h3 style="margin:0">📋 我的订单</h3>
+        <button class="btn btn-outline btn-sm" id="btn-refresh">刷新</button>
+    </div>
+    <div id="orders"></div>
+</main>
+
+<footer class="site container center">味知源餐厅 · 支持餐到付款，取消订单将自动返还库存</footer>
+
+<script src="js/api.js"></script>
+<script src="js/orders.js"></script>
+</body>
+</html>

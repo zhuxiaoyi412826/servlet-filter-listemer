@@ -1,0 +1,33 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <title>Servlet 表单 Demo</title>
+    <style>
+        body { font-family: system-ui, "Microsoft YaHei"; padding: 40px; }
+        input { padding: 6px 10px; }
+        button { padding: 6px 16px; cursor: pointer; }
+        .tip { color: #6b7280; margin-top: 12px; }
+    </style>
+</head>
+<body>
+<h2>用户名校验（Servlet Demo）</h2>
+
+<!-- action 由 JS 动态拼接：自动适配 Jetty(/) 与 Tomcat(/servlet_filter_listemer_war) 两种 contextPath -->
+<form id="demoForm" method="get">
+    请输入用户名：<input type="text" name="username" value="atguigu" /> <br><br>
+    <button type="submit">校验</button>
+</form>
+
+<p class="tip">输入 <b>t_user 表中已存在的用户名或手机号</b>（例如 <b>admin</b>），
+    数据库中查到且未被禁用显示“登录成功”，查不到显示“登录失败”。</p>
+
+<script>
+    // /static/demo.html => contextPath 就是 /static/ 之前的那一段
+    var ctx = location.pathname.indexOf('/static/') >= 0
+        ? location.pathname.slice(0, location.pathname.indexOf('/static/'))
+        : '';
+    document.getElementById('demoForm').action = ctx + '/userServlet1';
+</script>
+</body>
+</html>

@@ -1,0 +1,23 @@
+app:
+  name: 味知源餐厅点餐系统
+  # 前后端分离：前端静态文件目录为 webapp/static，后端只暴露 /api 数据接口
+  static-path: /static
+
+db:
+  url: ${DB_URL:jdbc:mysql://127.0.0.1:3306/restaurant?serverTimezone=Asia/Shanghai&useUnicode=true&characterEncoding=utf8&useSSL=false&allowPublicKeyRetrieval=true}
+  username: ${DB_USERNAME:root}
+  password: ${DB_PASSWORD:412826}
+  # 启动时自动建库建表并写入菜品种子数据
+  auto-init: true
+
+minio:
+  # MinIO API 地址（9000 是 API 端口，不是控制台 9001）
+  endpoint: ${MINIO_ENDPOINT:http://127.0.0.1:9000}
+  # = MinIO Server 的 MINIO_ROOT_USER
+  access-key: ${MINIO_ACCESS_KEY:minioadmin}
+  # = MinIO Server 的 MINIO_ROOT_PASSWORD
+  secret-key: ${MINIO_SECRET_KEY:minioadmin}
+  # 桶名，须≥6字符符合 S3 规范；启动时自动创建，无需手建
+  bucket: ${MINIO_BUCKET:im-files}
+  # MinIO 不可用时是否降级为本地磁盘存储 webapp/static/uploads
+  fallback-local: true

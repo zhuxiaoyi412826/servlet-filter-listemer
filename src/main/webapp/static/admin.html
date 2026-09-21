@@ -1,0 +1,243 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8"/>
+    <meta name="viewport" content="width=device-width, initial-scale=1"/>
+    <title>后台管理 · 味知源餐厅</title>
+    <script>
+        // 上下文路径自适应：Jetty(/) 与 Tomcat(/restaurant) 部署均可正常加载静态资源与接口
+        (function () {
+            var p = location.pathname;
+            var i = p.indexOf('/static/');
+            window.CTX = i >= 0 ? p.slice(0, i) : p.replace(/\/+$/, '');
+            document.write('<base href="' + window.CTX + '/static/"/>');
+        })();
+    </script>
+    <link rel="stylesheet" href="css/common.css"/>
+</head>
+<body>
+<div id="toast"></div>
+
+<nav class="navbar">
+    <div class="container inner">
+        <a class="logo" href="index.html"><span class="badge">🍜</span>味知源餐厅</a>
+        <div class="nav-links" id="nav-links">
+            <a href="index.html" data-key="home">开始点餐</a>
+            <a href="orders.html" data-key="orders">我的订单</a>
+            <a href="profile.html" data-key="profile">个人中心</a>
+            <a href="admin.html" data-key="admin" hidden>后台管理</a>
+        </div>
+        <div style="margin-left:auto" id="nav-user"></div>
+    </div>
+</nav>
+
+<main class="container">
+    <div class="tabs" id="admin-tabs">
+        <button data-tab="dish" class="active">🍳 菜品管理</button>
+        <button data-tab="order">🧾 订单管理</button>
+        <button data-tab="user">👥 用户管理</button>
+        <button data-tab="income">💰 收入管理</button>
+    </div>
+
+    <!-- ==================== 菜品管理 ==================== -->
+    <section id="tab-dish" class="tab-pane">
+        <div class="section-title">
+            <h3 style="margin:0">🍳 菜品管理</h3>
+            <div class="flex" style="gap:10px">
+                <input class="input" id="keyword" placeholder="输入关键字筛选" style="width:220px"/>
+                <button class="btn" id="btn-new">＋ 新增菜品</button>
+            </div>
+        </div>
+
+        <div class="card" style="padding:16px;overflow-x:auto">
+            <table class="table">
+                <thead>
+                <tr>
+                    <th>图片</th><th>菜名</th><th>分类</th><th>价格</th><th>库存</th><th>状态</th><th>描述</th><th style="width:150px">操作</th>
+                </tr>
+                </thead>
+                <tbody id="tbody"></tbody>
+            </table>
+            <div class="empty" id="empty" hidden>暂无菜品数据</div>
+        </div>
+    </section>
+
+    <!-- ==================== 订单管理 ==================== -->
+    <section id="tab-order" class="tab-pane" hidden>
+        <div class="section-title"><h3 style="margin:0">🧾 订单管理</h3></div>
+        <div class="stat-grid" id="order-overview"></div>
+
+        <div class="card filter-bar" style="padding:14px 16px">
+            <input class="input" id="o-orderNo" placeholder="订单号" style="width:170px"/>
+            <input class="input" id="o-keyword" placeholder="用户名 / 手机号" style="width:180px"/>
+            <select class="select" id="o-status" style="width:150px">
+                <option value="">全部状态</option>
+                <option value="CREATED">待处理 CREATED</option>
+                <option value="PAID">已收款 PAID</option>
+                <option value="COMPLETED">已完成 COMPLETED</option>
+                <option value="CANCELLED">已取消 CANCELLED</option>
+            </select>
+            <input class="input" id="o-from" type="date" style="width:150px"/>
+            <span class="muted">至</span>
+            <input class="input" id="o-to" type="date" style="width:150px"/>
+            <button class="btn" id="o-search">查询</button>
+            <button class="btn btn-outline" id="o-reset">重置</button>
+            <button class="btn btn-ghost" id="o-refresh" style="margin-left:auto">刷新</button>
+        </div>
+
+        <div class="card" style="padding:16px;overflow-x:auto">
+            <table class="table">
+                <thead>
+                <tr>
+                    <th>订单号</th><th>下单用户</th><th>金额</th><th>支付</th><th>状态</th><th>下单时间</th><th style="width:230px">操作</th>
+                </tr>
+                </thead>
+                <tbody id="o-tbody"></tbody>
+            </table>
+            <div class="empty" id="o-empty" hidden>暂无符合条件的订单</div>
+            <div class="pager" id="o-pager"></div>
+        </div>
+    </section>
+
+    <!-- ==================== 用户管理 ==================== -->
+    <section id="tab-user" class="tab-pane" hidden>
+        <div class="section-title"><h3 style="margin:0">👥 用户管理</h3></div>
+        <div class="stat-grid" id="user-overview"></div>
+
+        <div class="card filter-bar" style="padding:14px 16px">
+            <input class="input" id="u-keyword" placeholder="用户名 / 昵称 / 手机号" style="width:230px"/>
+            <select class="select" id="u-role" style="width:130px">
+                <option value="">全部角色</option>
+                <option value="ADMIN">管理员</option>
+                <option value="USER">普通用户</option>
+            </select>
+            <select class="select" id="u-status" style="width:130px">
+                <option value="">全部状态</option>
+                <option value="1">正常</option>
+                <option value="0">已禁用</option>
+            </select>
+            <button class="btn" id="u-search">查询</button>
+            <button class="btn btn-outline" id="u-reset">重置</button>
+            <button class="btn btn-ghost" id="u-refresh" style="margin-left:auto">刷新</button>
+        </div>
+
+        <div class="card" style="padding:16px;overflow-x:auto">
+            <table class="table">
+                <thead>
+                <tr>
+                    <th>用户</th><th>手机号</th><th>角色</th><th>状态</th><th>订单数</th><th>累计消费</th><th>注册时间</th><th style="width:280px">操作</th>
+                </tr>
+                </thead>
+                <tbody id="u-tbody"></tbody>
+            </table>
+            <div class="empty" id="u-empty" hidden>暂无符合条件的用户</div>
+            <div class="pager" id="u-pager"></div>
+        </div>
+    </section>
+
+    <!-- ==================== 收入管理 ==================== -->
+    <section id="tab-income" class="tab-pane" hidden>
+        <div class="section-title">
+            <h3 style="margin:0">💰 收入管理</h3>
+            <div class="flex" style="gap:8px">
+                <select class="select" id="in-days" style="width:130px">
+                    <option value="7">近 7 天</option>
+                    <option value="14">近 14 天</option>
+                    <option value="30">近 30 天</option>
+                </select>
+                <button class="btn btn-ghost" id="in-refresh">刷新</button>
+            </div>
+        </div>
+
+        <div class="stat-grid" id="income-overview"></div>
+
+        <div class="grid grid-2" style="margin-top:20px">
+            <div class="card" style="padding:18px">
+                <div class="between"><h4 style="margin:0">每日营收趋势</h4><span class="muted" id="in-range"></span></div>
+                <div class="chart" id="in-chart"></div>
+            </div>
+            <div class="card" style="padding:18px">
+                <div class="between"><h4 style="margin:0">支付方式分布</h4><span class="muted">按有效订单</span></div>
+                <div id="in-pays" style="margin-top:12px"></div>
+            </div>
+        </div>
+
+        <div class="card" style="padding:18px;margin-top:20px">
+            <div class="between"><h4 style="margin:0">菜品销量排行</h4><span class="muted">不含取消订单</span></div>
+            <div id="in-dishes" style="margin-top:12px"></div>
+        </div>
+    </section>
+</main>
+
+<!-- 新增 / 编辑弹窗 -->
+<div class="modal" id="modal">
+    <div class="modal-box">
+        <div class="between" style="margin-bottom:14px">
+            <h3 style="margin:0" id="modal-title">新增菜品</h3>
+            <button class="btn-link" id="btn-close">✕</button>
+        </div>
+        <form class="form" id="form-dish" novalidate enctype="multipart/form-data">
+            <input type="hidden" name="id"/>
+            <div class="grid" style="grid-template-columns:1fr 1fr;gap:14px">
+                <div class="field">
+                    <label for="name">菜名</label>
+                    <input class="input" name="name" placeholder="如：宫保鸡丁"/>
+                    <div class="error-text" data-error="name"></div>
+                </div>
+                <div class="field">
+                    <label for="category">分类</label>
+                    <select class="select" name="category">
+                        <option value="热菜">热菜</option>
+                        <option value="凉菜">凉菜</option>
+                        <option value="主食">主食</option>
+                        <option value="汤羹">汤羹</option>
+                        <option value="饮品">饮品</option>
+                    </select>
+                    <div class="error-text" data-error="category"></div>
+                </div>
+                <div class="field">
+                    <label for="price">价格（元）</label>
+                    <input class="input" name="price" type="number" step="0.01" placeholder="0.00"/>
+                    <div class="error-text" data-error="price"></div>
+                </div>
+                <div class="field">
+                    <label for="stock">库存（份）</label>
+                    <input class="input" name="stock" type="number" placeholder="100"/>
+                    <div class="error-text" data-error="stock"></div>
+                </div>
+            </div>
+            <div class="field">
+                <label for="description">描述</label>
+                <textarea class="textarea" name="description" rows="2" placeholder="口味、食材介绍"></textarea>
+                <div class="error-text" data-error="description"></div>
+            </div>
+            <div class="field">
+                <label for="imageUrl">图片地址（可选，支持 emoji 占位）</label>
+                <input class="input" name="imageUrl" placeholder="留空时使用 🍽️ 占位"/>
+            </div>
+            <div class="field">
+                <label for="file">上传图片（可选，jpg/png ≤5MB）</label>
+                <input class="input" type="file" name="file" accept="image/*"/>
+            </div>
+            <div class="field">
+                <label for="status">状态</label>
+                <select class="select" name="status">
+                    <option value="1">上架</option>
+                    <option value="0">下架</option>
+                </select>
+            </div>
+            <button class="btn btn-block" type="submit" id="btn-save">保存</button>
+        </form>
+    </div>
+</div>
+
+<footer class="site container center">仅管理员可访问，后端由 AdminFilter + AuthFilter 双重校验</footer>
+
+<script src="js/api.js"></script>
+<script src="js/admin-common.js"></script>
+<script src="js/admin.js"></script>
+<script src="js/admin-order.js"></script>
+<script src="js/admin-user.js"></script>
+<script src="js/admin-income.js"></script>
+</body>
+</html>

@@ -1,0 +1,125 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<web-app xmlns="https://jakarta.ee/xml/ns/jakartaee"
+         xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+         xsi:schemaLocation="https://jakarta.ee/xml/ns/jakartaee
+                             https://jakarta.ee/xml/ns/jakartaee/web-app_5_0.xsd"
+         version="5.0"
+         metadata-complete="false">
+
+    <display-name>restaurant-ordering</display-name>
+
+
+
+
+
+
+
+
+
+    <!-- 访问 / 时进入 /static/index.html （前后端分离：静态页面目录） -->
+    <welcome-file-list>
+        <welcome-file>static/index.html</welcome-file>
+    </welcome-file-list>
+
+    <!-- ================= Listener（监听器）================= -->
+    <!-- 应用级：加载 application.yml、初始化 MySQL 表与 MinIO 桶 -->
+    <listener>
+        <listener-class>org.example.restaurant.listener.AppContextListener</listener-class>
+    </listener>
+    <!-- 会话级：在线人数统计 -->
+    <listener>
+        <listener-class>org.example.restaurant.listener.OnlineUserListener</listener-class>
+    </listener>
+    <!-- 请求级：PV / UV / 耗时统计 -->
+    <listener>
+        <listener-class>org.example.restaurant.listener.RequestStatListener</listener-class>
+    </listener>
+    <!-- 属性级：登录 / 登出审计 -->
+    <listener>
+        <listener-class>org.example.restaurant.listener.LoginAuditListener</listener-class>
+    </listener>
+
+    <!-- ================= Filter（过滤器，按声明顺序执行）================= -->
+    <filter>
+        <filter-name>encodingFilter</filter-name>
+        <filter-class>org.example.restaurant.filter.EncodingFilter</filter-class>
+        <init-param>
+            <param-name>encoding</param-name>
+            <param-value>UTF-8</param-value>
+        </init-param>
+    </filter>
+    <filter-mapping>
+        <filter-name>encodingFilter</filter-name>
+        <url-pattern>/*</url-pattern>
+    </filter-mapping>
+
+    <filter>
+        <filter-name>requestLogFilter</filter-name>
+        <filter-class>org.example.restaurant.filter.RequestLogFilter</filter-class>
+    </filter>
+    <filter-mapping>
+        <filter-name>requestLogFilter</filter-name>
+        <url-pattern>/*</url-pattern>
+    </filter-mapping>
+
+    <filter>
+        <filter-name>corsFilter</filter-name>
+        <filter-class>org.example.restaurant.filter.CorsFilter</filter-class>
+    </filter>
+    <filter-mapping>
+        <filter-name>corsFilter</filter-name>
+        <url-pattern>/*</url-pattern>
+    </filter-mapping>
+
+    <!-- Cookie 自动登录：没有 Session 但存在 rm_token Cookie 时重建会话 -->
+    <filter>
+        <filter-name>rememberMeFilter</filter-name>
+        <filter-class>org.example.restaurant.filter.RememberMeFilter</filter-class>
+    </filter>
+    <filter-mapping>
+        <filter-name>rememberMeFilter</filter-name>
+        <url-pattern>/*</url-pattern>
+    </filter-mapping>
+
+    <!-- 登录拦截：除白名单外所有 /api 接口必须登录 -->
+    <filter>
+        <filter-name>authFilter</filter-name>
+        <filter-class>org.example.restaurant.filter.AuthFilter</filter-class>
+        <init-param>
+            <param-name>excluded</param-name>
+            <param-value>/api/health,/api/stat/online,/api/error,/api/auth/login,/api/auth/register,/api/auth/phone,/api/dishes</param-value>
+        </init-param>
+    </filter>
+    <filter-mapping>
+        <filter-name>authFilter</filter-name>
+        <url-pattern>/api/*</url-pattern>
+    </filter-mapping>
+
+    <!-- 管理员权限拦截 -->
+    <filter>
+        <filter-name>adminFilter</filter-name>
+        <filter-class>org.example.restaurant.filter.AdminFilter</filter-class>
+    </filter>
+    <filter-mapping>
+        <filter-name>adminFilter</filter-name>
+        <url-pattern>/api/admin/*</url-pattern>
+    </filter-mapping>
+
+    <!-- Session 超时时间：30 分钟 -->
+    <session-config>
+        <session-timeout>30</session-timeout>
+        <cookie-config>
+            <http-only>true</http-only>
+            <max-age>-1</max-age>
+        </cookie-config>
+    </session-config>
+
+    <error-page>
+        <error-code>404</error-code>
+        <location>/static/404.html</location>
+    </error-page>
+    <error-page>
+        <exception-type>java.lang.Throwable</exception-type>
+        <location>/api/error</location>
+    </error-page>
+</web-app>

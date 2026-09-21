@@ -1,0 +1,60 @@
+Picked up JAVA_TOOL_OPTIONS: -Djavax.net.ssl.trustStoreType=WINDOWS-ROOT
+[INFO] Scanning for projects...
+[INFO] 
+[INFO] ----------------< org.example:servlet-filter-listemer >-----------------
+[INFO] Building servlet-filter-listemer 1.0-SNAPSHOT
+[INFO]   from pom.xml
+[INFO] --------------------------------[ war ]---------------------------------
+[INFO] 
+[INFO] >>> jetty:11.0.20:run (default-cli) > test-compile @ servlet-filter-listemer >>>
+[INFO] 
+[INFO] --- resources:3.3.1:resources (default-resources) @ servlet-filter-listemer ---
+[INFO] Copying 2 resources from src\main\resources to target\classes
+[INFO] 
+[INFO] --- compiler:3.13.0:compile (default-compile) @ servlet-filter-listemer ---
+[INFO] Nothing to compile - all classes are up to date.
+[INFO] 
+[INFO] --- resources:3.3.1:testResources (default-testResources) @ servlet-filter-listemer ---
+[INFO] skip non existing resourceDirectory D:\daima\Lianshi\servlet-filter-listemer\src\test\resources
+[INFO] 
+[INFO] --- compiler:3.13.0:testCompile (default-testCompile) @ servlet-filter-listemer ---
+[INFO] Nothing to compile - all classes are up to date.
+[INFO] 
+[INFO] <<< jetty:11.0.20:run (default-cli) < test-compile @ servlet-filter-listemer <<<
+[INFO] 
+[INFO] 
+[INFO] --- jetty:11.0.20:run (default-cli) @ servlet-filter-listemer ---
+[INFO] Configuring Jetty for project: servlet-filter-listemer
+[INFO] Classes = D:\daima\Lianshi\servlet-filter-listemer\target\classes
+[INFO] Context path = /
+[INFO] Tmp directory = D:\daima\Lianshi\servlet-filter-listemer\target\tmp
+[INFO] web.xml file = file:///D:/daima/Lianshi/servlet-filter-listemer/src/main/webapp/WEB-INF/web.xml
+[INFO] Webapp directory = D:\daima\Lianshi\servlet-filter-listemer\src\main\webapp
+[INFO] Web defaults = org/eclipse/jetty/webapp/webdefault.xml
+[INFO] Web overrides =  none
+[INFO] jetty-11.0.20; built: 2024-01-29T21:04:22.394Z; git: 922f8dc188f7011e60d0361de585fd4ac4d63064; jvm 21.0.6+8-LTS-188
+[INFO] Session workerName=node0
+====================================================
+[启动] 正在初始化餐厅点餐系统...
+[启动] MySQL 就绪: restaurant
+[MinIO] 已连接: http://127.0.0.1:9000, bucket=im-files
+[启动] 完成，耗时 952 ms
+====================================================
+[Listener] 在线人数统计已启动
+[INFO] Started o.e.j.m.p.MavenWebAppContext@6f25bf88{restaurant-ordering,/,[file:///D:/daima/Lianshi/servlet-filter-listemer/src/main/webapp/],AVAILABLE}{file:///D:/daima/Lianshi/servlet-filter-listemer/src/main/webapp/}
+[INFO] Started ServerConnector@311a0b3e{HTTP/1.1, (http/1.1)}{0.0.0.0:8081}
+[INFO] Started Server@2b736fee{STARTING}[11.0.20,sto=0] @5947ms
+[2026-09-18T20:26:20.386716100] GET /userServlet1 ?username=admin ip=127.0.0.1 status=200 cost=23ms user=anonymous
+[2026-09-18T20:26:20.428682] GET /userServlet1 ?username=nobody123 ip=127.0.0.1 status=200 cost=7ms user=anonymous
+[Listener] 会话创建 node048mfh54hy7h6sjdhst6zh7kk0，当前在线 1
+[Audit] 超级管理员 登录 [session=node048mfh54hy7h6sjdhst6zh7kk0]
+[RememberMe] Cookie 自动登录成功: admin
+[2026-09-18T20:27:45.924268900] GET /static/index.html  ip=[0:0:0:0:0:0:0:1] status=200 cost=24ms user=admin
+[2026-09-18T20:27:45.968243800] GET /static/css/common.css  ip=[0:0:0:0:0:0:0:1] status=304 cost=2ms user=admin
+[2026-09-18T20:27:45.968243800] GET /static/js/api.js  ip=[0:0:0:0:0:0:0:1] status=200 cost=2ms user=admin
+[2026-09-18T20:27:45.968243800] GET /static/js/index.js  ip=[0:0:0:0:0:0:0:1] status=200 cost=2ms user=admin
+[2026-09-18T20:27:46.013220] GET /api/auth/me  ip=[0:0:0:0:0:0:0:1] status=200 cost=7ms user=admin
+[2026-09-18T20:27:46.433089300] GET /api/dishes ? ip=[0:0:0:0:0:0:0:1] status=200 cost=30ms user=admin
+[2026-09-18T20:27:46.451079] GET /favicon.ico  ip=[0:0:0:0:0:0:0:1] status=404 cost=0ms user=admin
+[2026-09-18T20:27:46.453077700] GET /api/cart  ip=[0:0:0:0:0:0:0:1] status=200 cost=1ms user=admin
+[2026-09-18T20:27:46.556175900] GET /api/stat/online  ip=[0:0:0:0:0:0:0:1] status=200 cost=7ms user=admin
