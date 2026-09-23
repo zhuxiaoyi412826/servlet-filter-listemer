@@ -32,6 +32,7 @@ public final class DbInit {
             ensureColumns();
             seedUsers();
             seedDishes();
+            seedBalanceLogs();
             return null;
         } catch (Exception e) {
             String msg = e.getMessage();
@@ -76,6 +77,9 @@ public final class DbInit {
     private static void ensureColumns() {
         addColumnIfAbsent("t_user", "status",
                 "TINYINT NOT NULL DEFAULT 1 COMMENT '1 正常 0 禁用' AFTER role");
+        // 金币余额：老库补列时 DEFAULT 会给已有账号自动填 1000.00
+        addColumnIfAbsent("t_user", "balance",
+                "DECIMAL(10,2) NOT NULL DEFAULT 1000.00 COMMENT '金币余额，初始 1000' AFTER status");
     }
 
     private static void addColumnIfAbsent(String table, String column, String definition) {
@@ -187,6 +191,23 @@ public final class DbInit {
             }
         }
         System.out.println("[DB] 初始化菜品数据: " + seed.size() + " 道");
+    }
+
+    /**
+     * 为尚无流水记录的账号补一条「初始赠金」流水（幂等）。
+     * 只补缺失的账号，已有流水的不动；新注册用户由 BalanceService 懒初始化。
+     */
+    private static void seedBalanceLogs() {
+        String sql = "INSERT INTO t_balance_log(user_id, change_amount, balance_after, type, remark, created_at)"
+                + " SELECT u.id, u.balance, u.balance, 'INIT', '注册赠送金币', NOW()"
+                + " FROM t_user u"
+                + " WHERE NOT EXISTS (SELECT 1 FROM t_balance_log l WHERE l.user_id = u.id)";
+        try (Connection c = DbUtil.open(); Statement st = c.createStatement()) {
+            int n = st.executeUpdate(sql);
+            if (n > 0) System.out.println("[DB] 补写初始余额流水: " + n + " 个账号");
+        } catch (SQLException e) {
+            System.err.println("[DB] 补写余额流水失败: " + e.getMessage());
+        }
     }
 
     /** 把 ResultSet 行映射成 Dish。 */

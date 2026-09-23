@@ -53,10 +53,10 @@
             }).join('');
             $('orders').querySelectorAll('[data-cancel]').forEach(btn => {
                 btn.onclick = async () => {
-                    if (!confirm('确定要取消该订单吗？库存将自动返还')) return;
+                    if (!confirm('确定要取消该订单吗？库存自动返还，余额将原路退回')) return;
                     try {
-                        await App.request('/api/orders?id=' + btn.dataset.cancel, { method: 'DELETE' });
-                        App.toast('订单已取消', 'ok');
+                        const data = await App.request('/api/orders?id=' + btn.dataset.cancel, { method: 'DELETE' });
+                        App.toast(`订单已取消，退款 ${App.money(data.refund)}，余额 ${App.money(data.balance)}`, 'ok', 2600);
                         await load();
                     } catch (e) { App.toast(e.message, 'err'); }
                 };
@@ -67,6 +67,6 @@
     }
 
     function payText(type) {
-        return { CASH: '餐到付款', WECHAT: '微信支付', ALIPAY: '支付宝' }[type] || type;
+        return { CASH: '餐到付款', WECHAT: '微信支付', ALIPAY: '支付宝', BALANCE: '余额支付' }[type] || type;
     }
 })();

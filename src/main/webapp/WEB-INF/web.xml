@@ -9,13 +9,6 @@
     <display-name>restaurant-ordering</display-name>
 
 
-
-
-
-
-
-
-
     <!-- 访问 / 时进入 /static/index.html （前后端分离：静态页面目录） -->
     <welcome-file-list>
         <welcome-file>static/index.html</welcome-file>

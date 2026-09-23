@@ -31,14 +31,47 @@ public final class OrderDao {
      */
     public static Order create(long userId, Map<Long, Integer> cartItems, String payType, String remark)
             throws SQLException, IllegalArgumentException {
-        if (cartItems == null || cartItems.isEmpty()) {
-            throw new IllegalArgumentException("购物车是空的，请先点菜");
-        }
+//        静态 create 方法，接收用户 ID、购物车 Map、支付类型、
+//        备注；声明抛出数据库异常和非法参数异常，功能是创建订单（需要事务：新增订单 + 订单明细 + 扣库存）。
+//        事务边界在本方法内闭环：异常回滚，成功提交。
+
         try (Connection c = DbUtil.open()) {
             c.setAutoCommit(false);
             try {
+                Order order = insertInTx(c, userId, cartItems, payType, remark);
+                c.commit();
+                return order;
+            } catch (Exception e) {
+                c.rollback();
+                throw e;
+            } finally {
+                c.setAutoCommit(true);
+            }
+        }
+    }
+
+    /**
+     * 事务版下单：只写数据，**不提交也不回滚**，事务边界交给调用方。
+     * PayService 用它在同一个事务内完成「创建订单 + 扣减余额」，保证订单与扣款同生共死。
+     *
+     * @param c 调用方已开启的事务连接（autoCommit = false）
+     */
+    public static Order insertInTx(Connection c, long userId, Map<Long, Integer> cartItems,
+                                   String payType, String remark)
+            throws SQLException, IllegalArgumentException {
+//        空购物车直接抛业务异常，让上层捕获后返回给前端，避免空事务白跑。
+        if (cartItems == null || cartItems.isEmpty()) {
+            throw new IllegalArgumentException("购物车是空的，请先点菜");
+        }
+
+//        一次查出购物车所有菜品（减少 N+1 查询），然后逐项做 4 种校验，同时累加总价。
+//        注意：这里抛的异常由上层事务回滚，不会真扣库存。
+//        使用调用方的事务连接`c`，**批量查询购物车内所有菜品，并且对这些菜品记录加悲观锁**；查询结果存入 Map，key 为菜品 ID，value 是 Dish 实体。
                 Map<Long, Dish> dishes = loadForUpdate(c, new ArrayList<>(cartItems.keySet()));
                 double total = 0;
+
+//                `cartItems.entrySet()`拿到 Map 全部键值对，增强 for 循环取出每一个`Map.Entry`对象；
+//                entry.getKey () 取菜品 ID，entry.getValue () 取购买数量，用于循环校验库存、扣减库存。
                 for (Map.Entry<Long, Integer> entry : cartItems.entrySet()) {
                     Dish d = dishes.get(entry.getKey());
                     if (d == null) throw new IllegalArgumentException("菜品已下架或不存在，请刷新购物车");
@@ -50,6 +83,8 @@ public final class OrderDao {
                     if (d.status == 0) throw new IllegalArgumentException("菜品【" + d.name + "】已下架");
                     total += d.price * quantity;
                 }
+
+//                组装 Order 对象，设置订单号、用户 ID、总金额、支付类型、备注、状态、创建时间
                 LocalDateTime now = LocalDateTime.now();
                 Order order = new Order();
                 order.orderNo = generateOrderNo(now);
@@ -59,9 +94,20 @@ public final class OrderDao {
                 order.remark = remark;
                 order.status = "CREATED";
                 order.createdAt = now;
-
+//             向**订单主表 `t_order`**插入一条新订单记录 ？？？ 占位符
                 String orderSql = "INSERT INTO t_order(order_no,user_id,total_amount,pay_type,remark,status,created_at)"
                         + " VALUES(?,?,?,?,?,?,NOW())";
+
+//              告诉 JDBC：**插入完成后，返回数据库自动生成的主键（自增 id）**
+                /**
+                 * 序号	代码	对应字段
+                 * 1	ps.setString(1, order.orderNo)	order_no 订单业务编号
+                 * 2	ps.setLong(2, userId)	user_id 用户 id
+                 * 3	ps.setBigDecimal(3, ...)	totalAmount 订单总金额（金额推荐 BigDecimal，避免浮点精度丢失）
+                 * 4	ps.setString(4, order.payType)	pay_type 支付方式
+                 * 5	ps.setString(5, order.remark)	remark 备注
+                 * 6	ps.setString(6, order.status)	status 订单状态
+                 */
                 try (PreparedStatement ps = c.prepareStatement(orderSql, Statement.RETURN_GENERATED_KEYS)) {
                     ps.setString(1, order.orderNo);
                     ps.setLong(2, userId);
@@ -74,9 +120,10 @@ public final class OrderDao {
                         if (keys.next()) order.id = keys.getLong(1);
                     }
                 }
-
+//             写 t_order_item（订单明细）
                 String itemSql = "INSERT INTO t_order_item(order_id,dish_id,dish_name,price,quantity,amount)"
                         + " VALUES(?,?,?,?,?,?)";
+//                扣库存，乐观锁条件 防止超卖 最小库存底线（必须大于等于购买数量才能扣）
                 String stockSql = "UPDATE t_dish SET stock = stock - ? WHERE id = ? AND stock >= ?";
                 for (Map.Entry<Long, Integer> entry : cartItems.entrySet()) {
                     Dish d = dishes.get(entry.getKey());
@@ -109,25 +156,21 @@ public final class OrderDao {
                         if (rows != 1) throw new IllegalArgumentException("菜品【" + d.name + "】库存不足，请刷新重试");
                     }
                 }
-                c.commit();
+//  写库完成，提交/回滚由外层事务决定
                 return order;
-            } catch (Exception e) {
-                c.rollback();
-                throw e;
-            } finally {
-                c.setAutoCommit(true);
-            }
-        }
     }
 
+//    在事务中加锁读取购物车里所有菜品的最新数据（价格、库存、状态），防止并发下单时超卖。  定义悲观锁
     private static Map<Long, Dish> loadForUpdate(Connection c, List<Long> ids) throws SQLException {
         StringBuilder in = new StringBuilder();
+//        SQL拼接，生成 IN (?) 的占位符列表，比如 3 个占位符就是 (?,?,?)
         for (int i = 0; i < ids.size(); i++) {
             if (i > 0) in.append(',');
             in.append('?');
         }
         String sql = "SELECT id,name,category,price,stock,image_url,description,status,created_at"
                 + " FROM t_dish WHERE id IN (" + in + ")";
+
         Map<Long, Dish> map = new java.util.LinkedHashMap<>();
         try (PreparedStatement ps = c.prepareStatement(sql)) {
             for (int i = 0; i < ids.size(); i++) ps.setLong(i + 1, ids.get(i));
@@ -149,12 +192,14 @@ public final class OrderDao {
         return map;
     }
 
+// 这段 generateOrderNo 是生成订单编号的工具方法：
     private static String generateOrderNo(LocalDateTime now) {
         String prefix = now.format(DateTimeFormatter.ofPattern("yyyyMMddHHmmss"));
         int rnd = (int) (Math.random() * 9000) + 1000;
         return "RS" + prefix + rnd;
     }
 
+//    将 ResultSet 的内容映射到 Order 对象。
     private static Order map(ResultSet rs) throws SQLException {
         Order o = new Order();
         o.id = rs.getLong("id");
@@ -184,6 +229,7 @@ public final class OrderDao {
         }
     }
 
+// 查询订单记录
     public static Order findByNo(String orderNo, long userId) throws SQLException {
         String sql = "SELECT id,order_no,user_id,total_amount,pay_type,remark,status,created_at"
                 + " FROM t_order WHERE order_no = ? AND user_id = ?";
@@ -198,7 +244,7 @@ public final class OrderDao {
             }
         }
     }
-
+// 查询当前订单的明细
     public static List<OrderItem> findItems(long orderId) throws SQLException {
         String sql = "SELECT i.id,i.order_id,i.dish_id,i.dish_name,i.price,i.quantity,i.amount,d.image_url"
                 + " FROM t_order_item i LEFT JOIN t_dish d ON d.id = i.dish_id"
@@ -224,13 +270,53 @@ public final class OrderDao {
         }
     }
 
+    /**
+     * 事务内锁定并读取订单关键信息（悲观锁），供退款前取金额使用。
+     *
+     * @return {orderNo,totalAmount,status}，订单不存在或非本人时返回 null
+     */
+    public static Map<String, Object> lockOrder(Connection c, long userId, long orderId) throws SQLException {
+        String sql = "SELECT order_no,total_amount,status FROM t_order WHERE id = ? AND user_id = ? FOR UPDATE";
+        try (PreparedStatement ps = c.prepareStatement(sql)) {
+            ps.setLong(1, orderId);
+            ps.setLong(2, userId);
+            try (ResultSet rs = ps.executeQuery()) {
+                if (!rs.next()) return null;
+                Map<String, Object> m = new LinkedHashMap<>();
+                m.put("orderNo", rs.getString("order_no"));
+                m.put("totalAmount", rs.getBigDecimal("total_amount").doubleValue());
+                m.put("status", rs.getString("status"));
+                return m;
+            }
+        }
+    }
+
     /** 取消订单并回滚库存（事务）。 */
     public static boolean cancel(long userId, long orderId) throws SQLException {
-        String query = "SELECT order_no,status FROM t_order WHERE id=? AND user_id=?";
         try (Connection c = DbUtil.open()) {
             c.setAutoCommit(false);
             try {
-                boolean canCancel;
+                boolean ok = cancelInTx(c, userId, orderId);
+                if (ok) c.commit(); else c.rollback();
+                return ok;
+            } catch (Exception e) {
+                c.rollback();
+                throw e;
+            } finally {
+                c.setAutoCommit(true);
+            }
+        }
+    }
+
+    /**
+     * 事务版取消：归还库存并把状态改为 CANCELLED，**不提交不回滚**（由调用方控制）。
+     * PayService 用它配合余额退款，保证库存、订单状态、退款三者同事务。
+     *
+     * @return true 表示成功取消
+     */
+    public static boolean cancelInTx(Connection c, long userId, long orderId) throws SQLException {
+        String query = "SELECT order_no,status FROM t_order WHERE id=? AND user_id=?";
+        boolean canCancel;
                 try (PreparedStatement ps = c.prepareStatement(query)) {
                     ps.setLong(1, orderId);
                     ps.setLong(2, userId);
@@ -239,8 +325,7 @@ public final class OrderDao {
                     }
                 }
                 if (!canCancel) {
-                    c.rollback();
-                    return false;
+                    return false;      // 不可取消，由调用方决定回滚还是提交
                 }
                 // 归还库存
                 List<OrderItem> items = findItemsInTx(c, orderId);
@@ -256,15 +341,7 @@ public final class OrderDao {
                     ps.setLong(1, orderId);
                     ps.executeUpdate();
                 }
-                c.commit();
                 return true;
-            } catch (Exception e) {
-                c.rollback();
-                throw e;
-            } finally {
-                c.setAutoCommit(true);
-            }
-        }
     }
 
     // ==================== 后台：订单管理 ====================

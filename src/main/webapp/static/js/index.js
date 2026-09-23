@@ -172,10 +172,9 @@
         btn.disabled = true; btn.textContent = '提交中…';
         try {
             const data = await App.post('/api/orders', {
-                payType: form.payType.value,
                 remark: form.remark.value
             });
-            App.toast(`下单成功：${data.order.orderNo}`, 'ok', 2600);
+            App.toast(`下单成功：${data.order.orderNo} · 余额扣款 ${App.money(data.paid)}，剩余 ${App.money(data.balance)}`, 'ok', 3200);
             $('checkout').classList.remove('show');
             openCart(false);
             state.cart = { items: [], total: 0, count: 0 };

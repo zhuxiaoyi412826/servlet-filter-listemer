@@ -73,11 +73,64 @@
             </form>
         </section>
     </div>
+
+    <!-- 金币余额（新功能：servlet → service → dao 三层，扣款走事务 + 悲观锁） -->
+    <section class="card" style="padding:22px;margin-top:24px">
+        <div style="display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:8px">
+            <h3 style="margin:0">金币余额</h3>
+            <span class="muted" style="font-size:12.5px">初始赠金 1000.00 · 下单自动扣款 / 取消自动退款（事务 + 悲观锁）</span>
+        </div>
+
+        <div class="stat-grid">
+            <div class="stat-box">
+                <div class="stat-label">当前余额</div>
+                <div class="stat-value" id="bal-balance">--</div>
+            </div>
+            <div class="stat-box">
+                <div class="stat-label">累计支出</div>
+                <div class="stat-value" id="bal-spent">--</div>
+            </div>
+            <div class="stat-box">
+                <div class="stat-label">累计充值 / 赠金</div>
+                <div class="stat-value" id="bal-income">--</div>
+            </div>
+        </div>
+
+        <form class="form" id="form-recharge" novalidate>
+            <div class="grid" style="grid-template-columns:160px 1fr auto;gap:12px;align-items:end">
+                <div class="field">
+                    <label for="recharge-amount">充值金额</label>
+                    <input class="input" id="recharge-amount" name="amount" placeholder="0.00" inputmode="decimal"/>
+                </div>
+                <div class="field">
+                    <label for="recharge-remark">备注</label>
+                    <input class="input" id="recharge-remark" name="remark" placeholder="如：微信充值"/>
+                </div>
+                <button class="btn" type="submit" id="btn-recharge">充值</button>
+            </div>
+        </form>
+
+        <table class="table" style="margin-top:18px">
+            <thead>
+            <tr>
+                <th>时间</th>
+                <th>类型</th>
+                <th>变动金额</th>
+                <th>变动后余额</th>
+                <th>备注</th>
+            </tr>
+            </thead>
+            <tbody id="bal-tbody"></tbody>
+        </table>
+        <div class="empty" id="bal-empty">暂无流水记录</div>
+        <div class="pager" id="bal-pager"></div>
+    </section>
 </main>
 
 <footer class="site container center">味知源餐厅 · 基于 Cookie + Session 的登录态方案</footer>
 
 <script src="js/api.js"></script>
 <script src="js/profile.js"></script>
+<script src="js/balance.js"></script>
 </body>
 </html>

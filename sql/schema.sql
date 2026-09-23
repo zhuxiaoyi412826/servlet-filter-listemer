@@ -17,8 +17,21 @@ CREATE TABLE IF NOT EXISTS t_user (
     address       VARCHAR(255) COMMENT '默认收货地址',
     role          VARCHAR(20)  NOT NULL DEFAULT 'USER' COMMENT 'USER / ADMIN',
     status        TINYINT      NOT NULL DEFAULT 1 COMMENT '1 正常 0 禁用（禁用后无法登录）',
+    balance       DECIMAL(10,2) NOT NULL DEFAULT 1000.00 COMMENT '金币余额，初始 1000',
     created_at    DATETIME     NOT NULL DEFAULT CURRENT_TIMESTAMP,
     updated_at    DATETIME     NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP
+) ENGINE = InnoDB DEFAULT CHARSET = utf8mb4;
+
+-- 余额流水表：记录每一笔变动的金额与变动后余额
+CREATE TABLE IF NOT EXISTS t_balance_log (
+    id            BIGINT AUTO_INCREMENT PRIMARY KEY,
+    user_id       BIGINT         NOT NULL,
+    change_amount DECIMAL(10, 2) NOT NULL COMMENT '变动金额：负数为支出，正数为收入',
+    balance_after DECIMAL(10, 2) NOT NULL COMMENT '变动后的余额',
+    type          VARCHAR(20)    NOT NULL DEFAULT 'SPEND' COMMENT 'INIT 初始赠金 / SPEND 消费 / REFUND 退款 / RECHARGE 充值',
+    remark        VARCHAR(255),
+    created_at    DATETIME       NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    KEY idx_log_user (user_id, id)
 ) ENGINE = InnoDB DEFAULT CHARSET = utf8mb4;
 
 -- 菜品表

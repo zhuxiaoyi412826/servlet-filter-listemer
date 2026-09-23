@@ -183,7 +183,16 @@ mvn clean package
 
 ## 八、核心流程图
 
-> 完整 13 张图见 [md/02-流程图.md](md/02-流程图.md)；不支持 Mermaid 时可粘到 https://mermaid.live 查看。
+### 各层职责与现状
+
+| 层次     | 本项目实现                         | 说明                                              |
+| -------- | ---------------------------------- | ------------------------------------------------- |
+| 表现层   | `static/*.html` + `static/js/*.js` | 原生 HTML/JS，无框架；`api.js` 统一封装 fetch     |
+| 过滤器层 | `filter/` 6 个                     | 编码、日志、跨域、自动登录、鉴权、管理员权限      |
+| 控制器层 | `servlet/` 18 个                   | `@WebServlet` 注解注册，负责取参 / 校验 / 响应    |
+| 持久层   | `dao/` 4 个                        | 手写 JDBC + `PreparedStatement`，无 ORM、无连接池 |
+| 数据源   | `util/DbUtil`                      | 唯一 `DriverManager.getConnection` 出口           |
+| 数据库   | MySQL 8                            | 6 张表，DDL 在 `db/schema.sql`                    |
 
 ### 1. 全链路请求时序（前台 → 过滤器 → Servlet → DAO → 数据库 → 返回）
 
@@ -243,67 +252,216 @@ sequenceDiagram
     P-->>U: 页面展示结果
 ```
 
-### 2. 分层架构与数据流向（含 service 层说明）
+### 2. 请求进入：Filter 拦截链
 
 ```mermaid
 flowchart TD
-    A["前台 HTML<br/>static/index.html 等 9 个页面"] --> B["前端 JS<br/>App.request 统一封装"]
-    B -->|"HTTP JSON"| C["Web 容器<br/>Tomcat 10 / Jetty"]
+    R(["HTTP 请求"]) --> F1["EncodingFilter<br/>设置 UTF-8"]
+    F1 --> F2["RequestLogFilter<br/>记录 ip/uri/起始时间"]
+    F2 --> F3["CorsFilter<br/>写跨域头，OPTIONS 直接返回"]
+    F3 --> F4{"RememberMeFilter<br/>Session 里已有用户？"}
+    F4 -->|"无 且 有 rm_token"| F4a["AuthDao.findUserByToken()"]
+    F4a --> F4b{"令牌有效且未禁用？"}
+    F4b -->|"是"| F5["重建 Session"]
+    F4b -->|"否"| F4c["清除 Cookie"]
+    F4 -->|"已有"| F5
+    F4c --> F5
+    F5 --> F6{"AuthFilter<br/>路径在白名单？"}
+    F6 -->|"是"| S1["直接放行到 Servlet"]
+    F6 -->|"否"| F6a{"Session 有用户？"}
+    F6a -->|"否"| E401(["401 未登录"])
+    F6a -->|"是"| F7{"路径为 /api/admin/* ?"}
+    F7 -->|"否"| S1
+    F7 -->|"是"| F7a{"role == ADMIN ?"}
+    F7a -->|"否"| E403(["403 无权限"])
+    F7a -->|"是"| S1
+    S1 --> S2["Servlet 业务处理"]
+    S2 --> S3["RequestLogFilter 回写<br/>status / cost"]
+    S3 --> E(["JSON 响应"])
+```
 
-    C --> D{"过滤器链"}
-    D --> D1["EncodingFilter"]
-    D1 --> D2["RequestLogFilter"]
-    D2 --> D3["CorsFilter"]
-    D3 --> D4["RememberMeFilter"]
-    D4 --> D5{"是否 /api/* ?"}
-    D5 -->|"否"| E1["静态资源 / Demo 直接返回"]
-    D5 -->|"是"| D6["AuthFilter 登录校验"]
-    D6 -->|"未登录"| X1["401 → 跳转登录页"]
-    D6 -->|"已登录"| D7{"是否 /api/admin/* ?"}
-    D7 -->|"是"| D8["AdminFilter 管理员校验"]
-    D8 -->|"非管理员"| X2["403 拒绝"]
-    D8 -->|"管理员"| E2
-    D7 -->|"否"| E2["Servlet 层<br/>LoginServlet / DishServlet<br/>OrderServlet / Admin*Servlet ..."]
+---
 
-    E2 -.缺失 / 可选.-> S1["Service 层<br/>本项目未实现"]
-    E2 --> F1["DAO 层<br/>AuthDao / UserDao<br/>DishDao / OrderDao"]
+### 3. 登录：账号密码 + 记住我
 
-    F1 --> G["util/DbUtil<br/>DriverManager 取连接"]
-    G --> H[("MySQL 8<br/>t_user / t_dish<br/>t_order / t_order_item")]
+<img src="https://zhuxiaoyi-1300958454.cos.ap-guangzhou.myqcloud.com/img/mermaid (13).png" style="zoom:150%;" />
 
-    H -->|"ResultSet"| F1
-    F1 -->|"Model / List"| E2
-    E2 -->|"Resp.ok → Json 序列化"| B
-    B -->|"渲染"| A
+### 4. 登录：手机号验证码（首次自动注册）
 
-    subgraph 启动阶段
-        L1["AppContextListener"] --> L2["读 application.yml"]
-        L2 --> L3["DbInit 建库建表"]
-        L3 --> L4["MinIO 桶初始化"]
+```mermaid
+flowchart TD
+    A["用户：输入手机号"] --> B["GET /api/auth/phone/code"]
+    B --> C["生成 6 位随机码 + 有效期"]
+    C --> D["INSERT t_phone_code<br/>(phone, code, expire_at, used=0)"]
+    D --> E["(演示环境) 控制台输出验证码"]
+    E --> F["用户填写验证码"]
+    F --> G["POST /api/auth/phone/login"]
+    G --> H{"验证码有效且未过期/未使用？"}
+    H -->|"否"| H1(["400 验证码错误或已失效"])
+    H -->|"是"| I{"手机号已注册？"}
+    I -->|"否"| J["自动创建账号<br/>默认昵称 phone_xxxx"]
+    I -->|"是"| K["查出已有用户"]
+    J --> L["标记 code.used = 1"]
+    K --> L
+    L --> M["写入 Session，返回登录态"]
+    M --> N(["跳转首页"])
+```
+
+---
+
+### 5. 浏览菜品 → 加购 → 下单（核心链路，含事务与库存）
+
+```mermaid
+sequenceDiagram
+    autonumber
+    participant U as 用户
+    participant FE as index.html / app.js
+    participant DS as DishServlet
+    participant CS as CartServlet
+    participant OS as OrderServlet
+    participant OD as OrderDao
+    participant DD as DishDao
+    participant DB as MySQL
+
+    U->>FE: 打开点餐页
+    FE->>DS: GET /api/dishes?category=
+    DS->>DD: list(category, status=1)
+    DD->>DB: SELECT ... FROM t_dish WHERE status=1
+    DB-->>FE: 菜品卡片渲染
+
+    U->>FE: 点击"加入购物车"
+    FE->>CS: POST /api/cart {dishId, qty}
+    CS->>DD: findById(dishId)
+    alt 已下架 / 库存不足
+        CS-->>FE: 400 提示
+    else 正常
+        CS->>CS: Session 购物车累加（内存）
+        CS-->>FE: {cartCount, cart}
+    end
+
+    U->>FE: 点击"去结算"
+    FE->>OS: POST /api/orders {payType, remark}
+    OS->>OD: create(userId, cart, payType, remark)
+    OD->>DB: setAutoCommit(false)
+    OD->>DB: SELECT ... FOR UPDATE（锁定购物车涉及的菜品行）
+    OD->>OD: 校验存在性 / 上架状态 / 库存充足
+    alt 任一校验失败
+        OD->>DB: ROLLBACK
+        OD-->>OS: IllegalArgumentException
+        OS-->>FE: 400（前端保留购物车数据便于修改）
+    else 全部通过
+        OD->>DB: UPDATE t_dish SET stock = stock - qty
+        OD->>DB: INSERT t_order（order_no，status='CREATED'）
+        OD->>DB: INSERT t_order_item（快照菜名与单价）
+        OD->>DB: COMMIT
+        OD-->>OS: Order（含明细）
+        OS->>OS: 清空 Session 购物车
+        OS-->>FE: {order, cartCount:0} → 跳转 orders.html
     end
 ```
 
-### 各层职责与现状
 
-| 层次 | 本项目实现 | 说明 |
-| --- | --- | --- |
-| 表现层 | `static/*.html` + `static/js/*.js` | 原生 HTML/JS，无框架；`api.js` 统一封装 fetch |
-| 过滤器层 | `filter/` 6 个 | 编码、日志、跨域、自动登录、鉴权、管理员权限 |
-| 控制器层 | `servlet/` 18 个 | `@WebServlet` 注解注册，负责取参 / 校验 / 响应 |
-| 持久层 | `dao/` 4 个 | 手写 JDBC + `PreparedStatement`，无 ORM、无连接池 |
-| 数据源 | `util/DbUtil` | 唯一 `DriverManager.getConnection` 出口 |
-| 数据库 | MySQL 8 | 6 张表，DDL 在 `db/schema.sql` |
 
-### 4.数据流
+### 6. 错误处理统一出口
 
-```
-浏览器 fetch
-  → Filter 链（编码/跨域/恢复会话/鉴权）     ← Filter
-  → @WebServlet（取参、校验、拼响应）        ← Servlet
-  → dao（手写 SQL、事务）                    ← JDBC
-  → DbUtil.open() → MySQL
-  ↑
-  Listener 在启动时已把配置和表准备好      ← Listener
-  Session/Cookie 全程携带用户身份           ← Cookie+Session
+```mermaid
+flowchart TD
+    A["任意 Servlet 抛异常"] --> B["web.xml error-page<br/>exception-type Throwable"]
+    B --> C["转发到 /api/error"]
+    C --> D["ErrorServlet 取 ERROR_STATUS_CODE / EXCEPTION"]
+    D --> E{"是否 API 请求？"}
+    E -->|"是"| F(["JSON：{code, msg}"])
+    E -->|"否（静态资源 404）"| G(["forward /static/404.html"])
+    F --> H["前端 App.toast 统一提示"]
+    G --> H
 ```
 
+---
+
+### 7. 后台管理四大模块（数据流）
+
+```mermaid
+flowchart TB
+    subgraph ADMIN["admin.html 四大 Tab"]
+        T1["菜品管理"]
+        T2["订单管理"]
+        T3["用户管理"]
+        T4["收入管理"]
+    end
+    T1 --> A1["/api/admin/dish<br/>GET / POST / PUT / DELETE"]
+    T2 --> A2["/api/admin/orders<br/>GET（分页+筛选+概览）/ PUT（改状态）"]
+    T3 --> A3["/api/admin/user<br/>GET（分页+角色/状态筛选）/ PUT（角色/启禁/重置密码）"]
+    T4 --> A4["/api/admin/income?days=N<br/>GET（日营收曲线 / 客单价 / Top 菜品 / 取消金额）"]
+
+    A1 --> D1[("t_dish")]
+    A2 --> D2[("t_order + t_order_item")]
+    A3 --> D3[("t_user")]
+    A4 --> D4[("聚合查询：SUM / GROUP BY date")]
+
+    A1 --> M1[("MinIO / local")]
+    A2 --> M2["订单状态机 + 库存回滚"]
+
+    D4 --> V["折线图 / 卡片 <br/>原生 JS 渲染，无图表库"]
+```
+
+# 项目流程
+
+> 图形仅为流程示意，具体实现以源码为准：`servlet/` 处理流程、`filter/` 拦截、`dao/` 事务、`listener/` 旁路统计。
+> 若阅读器不支持 Mermaid，可用 https://mermaid.live 粘贴查看。
+
+
+
+
+
+```
+前端 fetch
+  ↓
+① Listener（RequestStatListener 记录请求开始）
+  ↓
+② Filter 链：Encoding → RequestLog → Cors → RememberMe → Auth → Admin
+     ├─ 不通过：直接写 401/403 JSON 返回（Servlet 不会执行）
+     └─ 通过：chain.doFilter() → 进入 Servlet
+  ↓
+③ Servlet：取参数 → 调 Dao
+  ↓
+④ Dao：DbUtil.open() 拿连接 → PreparedStatement 执行 SQL
+  ↓
+⑤ ResultSet → model 对象（Dao 里的 map(rs)）
+  ↓
+⑥ Json.toJson（反射 public 字段）→ WebUtil.json 写响应
+  ↓
+⑦ Filter 链回溯（RequestLogFilter 打印 status、耗时）
+  ↓
+⑧ Listener（请求销毁，统计收尾）
+     ↓
+  异常逃出 ③ → 容器 → ErrorServlet → 500 JSON（仅兜底）
+```
+
+```mermaid
+graph TD
+    A[前端 fetch] --> B["① Listener RequestStatListener\n记录请求开始"]
+    B --> C["② Filter过滤链\nEncoding → RequestLog → Cors → RememberMe → Auth → Admin"]
+
+    C -->|"校验不通过"| C1["直接输出401/403 JSON响应\nServlet不再执行"] --> H["⑦ Filter链回溯\nRequestLogFilter打印状态码、请求耗时"]
+    C -->|"校验通过，执行chain.doFilter()"| D["③ Servlet\n接收请求参数，调用Dao"]
+
+    D -->|"业务异常向外抛出"| ERR["异常逃出Servlet"] --> ERR1["Web容器转发 ErrorServlet\n输出兜底500 JSON"] --> H
+
+    D --> E["④ Dao层\nDbUtil.open 获取连接\nPreparedStatement执行SQL"]
+    E --> F["⑤ ResultSet结果集\nmap rs 封装为model实体对象"]
+    F --> G["⑥ Json.toJson反射序列化public字段\nWebUtil.json写出http响应"]
+
+    G --> H
+    H --> I["⑧ Listener请求销毁\n请求统计收尾"]
+    I --> J["返回最终数据给前端"]
+```
+
+> 一句话概括你的理解："Filter 守卫、Servlet 调度、Dao 执行、DbUtil 供连接、model 承载、Json 序列化、Listener 观测" —— 这个分工描述是准确的，只需把"拦截"理解成"可放行也可终止"，把"不合格走全局异常"改成"不合格由 Filter 直接响应"。
+
+
+
+
+
+流程架构图
+
+![](https://zhuxiaoyi-1300958454.cos.ap-guangzhou.myqcloud.com/img/mermaid (12).png)
